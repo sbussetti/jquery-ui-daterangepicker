@@ -30,6 +30,7 @@
 				{text: 'Year to Date', dateStart: function() { return moment().startOf('year') }, dateEnd: function() { return moment() } }
 			],
 			initialText: 'Select date range...', // placeholder text - shown when nothing is selected
+      initialValue: null, // initial value, could be range or single day.
 			icon: 'ui-icon-triangle-1-s',
 			applyButtonText: 'Apply', // use '' to get rid of the button
 			clearButtonText: 'Clear', // use '' to get rid of the button
@@ -102,7 +103,7 @@
 	 * @param {String} classnameContext classname of the parent container
 	 * @param {Object} options
 	 */
-	function buildTriggerButton($originalElement, classnameContext, options) {
+	function buildTriggerButton($originalElement, instance, classnameContext, options) {
 		var $self, id;
 
 		function fixReferences() {
@@ -120,7 +121,7 @@
 					icons: {
 						secondary: options.icon
 					},
-					label: options.initialText
+          label: $.isFunction(options.initialText) ? options.initialText(options) : options.initialText
 				});
 		}
 
@@ -133,8 +134,12 @@
 		}
 
 		function reset() {
-			$originalElement.val('').change();
-			setLabel(options.initialText);
+      if (!!options.initialValue) {
+        instance.setRange({start: options.initialValue});
+      } else {
+        $originalElement.val('').change();
+      }
+			setLabel($.isFunction(options.initialText) ? options.initialText(options) : options.initialText);
 		}
 
 		function enforceOptions() {
@@ -142,7 +147,7 @@
 				icons: {
 					secondary: options.icon
 				},
-				label: options.initialText
+				label: $.isFunction(options.initialText) ? options.initialText(options) : options.initialText
 			});
 		}
 
@@ -219,12 +224,12 @@
 			var dateFormat = options.datepickerOptions.dateFormat || $.datepicker._defaults.dateFormat,
 				selectedDate = $.datepicker.parseDate(dateFormat, dateText);
 
-			if (!range.start || range.end) { // start not set, or both already set
-				range.start = selectedDate;
-				range.end = null;
-			} else if (selectedDate < range.start) { // start set, but selected date is earlier
+			if (selectedDate < range.start) { // start set, but selected date is earlier
 				range.end = range.start;
 				range.start = selectedDate;
+			} else if (!range.start || range.end) { // start not set, or both already set
+				range.start = selectedDate;
+				range.end = null;
 			} else {
 				range.end = selectedDate;
 			}
@@ -270,7 +275,7 @@
 		}
 
 		function reset() {
-			range = {start: null, end: null};
+			range = {start: options.initialValue, end: options.initialValue};
 			refresh();
 		}
 
@@ -393,7 +398,7 @@
 			vSide = null;
 
 		function init() {
-			triggerButton = buildTriggerButton($originalElement, classname, options);
+			triggerButton = buildTriggerButton($originalElement, instance, classname, options);
 			presetsMenu = buildPresetsMenu(classname, options, usePreset);
 			calendar = buildCalendar(classname, options);
 			autoFit.numberOfMonths = options.datepickerOptions.numberOfMonths; // save initial option!
@@ -684,6 +689,9 @@
 
 		init();
 		return {
+      _calendar: calendar,
+      _triggerButton: triggerButton,
+      _presetsMenu: presetsMenu,
 			toggle: toggle,
 			destroy: destroy,
 			open: open,
